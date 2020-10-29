@@ -1,0 +1,5 @@
+infer_out/
+__pycache__/
+.DS_Store
+Bridger/
+PFCA_yields.xlsx
