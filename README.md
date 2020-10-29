@@ -77,7 +77,7 @@ output file are index in python by column as:
   6 : C7 ECF precursors, 7 : C8 ECF precursors}`
 
 # Python dependencies
-Python 3.X  
-numpy  
-pandas  
-emcee  
+Python >= 3.7  
+[numpy](https://numpy.org/doc/stable/user/install.html)  
+[pandas](https://pandas.pydata.org/pandas-docs/stable/getting_started/install.html)  
+[emcee](https://emcee.readthedocs.io/en/stable/user/install/)  
