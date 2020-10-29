@@ -1,18 +1,18 @@
 # Description
-precursor_mcmc is a command line tool to infer concentrations of oxidizable
+oxidizable-pfas-precursor-inference is a command line tool to infer concentrations of oxidizable
 precursors aggregated by perfluorinated chain length (n) and manufacturing
 origin (electrochemical fluorination: ECF vs fluorotelomerization: FT) based
 on changes in perfluoroalkyl carboxylates (PFCA) in the total oxidizable
 precursor (TOP) assay.
 
-precursor_mcmc can be used to analyze TOP assay results for any aqueous
+infer_precursors.py can be used to analyze TOP assay results for any aqueous
 sample with the appropriate choice of a prior. This package
 provides one built-in prior:
   * prior_AFFF – used for AFFF stocks ([Ruyle et al. 2020](http://dx.doi.org/10.1021/acs.estlett.0c00798))  
 
 This prior can be used as a template and adapted for other specific purposes.
 
-Credit:
+### Credit:
   * Co-authorship is appropriate if your paper benefits significantly from use
   of this model/code  
   * Citation is appropriate if use of this model/code has only a marginal impact
@@ -23,7 +23,7 @@ This model was created by
 [Bridger J. Ruyle](https://scholar.harvard.edu/ruyle) and originally
 presented in [Ruyle et al. 2020](http://dx.doi.org/10.1021/acs.estlett.0c00798)
 
-Citation for code:
+### Citation for code:
 
 Ruyle, B. J.; Thackray, C. P.; McCord, J. P.; Strynar, M. J.; Mauge-Lewis, K. A.; Fenton, S. E.; Sunderland, E. M. Reconstructing the Composition of Per- and Polyfluoroalkyl Substances (PFAS) in Contemporary Aqueous Film Forming Foams. Environ. Sci. Technol. Lett. 2020. [https://doi.org/10.1021/acs.estlett.0c00798](http://dx.doi.org/10.1021/acs.estlett.0c00798).
 
