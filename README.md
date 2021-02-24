@@ -8,9 +8,11 @@ precursor (TOP) assay.
 infer_precursors.py can be used to analyze TOP assay results for any aqueous
 sample with the appropriate choice of a prior. This package
 provides one built-in prior:
-  * prior_AFFF – used for AFFF stocks ([Ruyle et al. 2020](http://dx.doi.org/10.1021/acs.estlett.0c00798))  
+  * prior_AFFF – used for AFFF stocks ([Ruyle et al. 2021a](http://dx.doi.org/10.1021/acs.estlett.0c00798))
+  * prior_AFFF_impacted – used for AFFF impacted water ([Ruyle et al. 2021b](http://dx.doi.org/10.1021/acs.est.0c07296))
+  * prior_unknown – used for water with unknown PFAS point sources ([Ruyle et al. 2021](http://dx.doi.org/10.1021/acs.est.0c07296))  
 
-This prior can be used as a template and adapted for other specific purposes.
+These priors can be used as a template and adapted for other specific purposes.
 
 ### Credit:
   * Co-authorship is appropriate if your paper benefits significantly from use
@@ -50,21 +52,19 @@ optional arguments:
                         Maximum depth of windowing in sampler tuning.  
 
 # Input format
-Measurement data should be contained in a csv with column headers for measured changes in concentrations of Cn PFCA, where n=number of per fluorinated carbons, after the TOP assay:  
+Measurement data should be contained in a csv with column headers for measured changes in concentrations of Cn PFCA, where n=number of per fluorinated carbons after the TOP assay, and the concentration of PFOS, measured independently from the TOP assay:  
 `C3, C4, C5, C6, C7, C8, PFOS`  
 (C3=PFBA, C4=PFPeA, C5=PFHxA, C6=PFHpA, C7=PFOA, C8=PFNA)  
-and associated MDLs:  
+and associated detection limits (LOD, MDL, MQL, etc.):  
 `C3MDL, C4MDL, C5MDL, C6MDL, C7MDL, C8MDL, PFOSMDL`  
-and associated measurement errors:  
+and associated measurement errors (ex: relative percent difference of replicate analyses):  
 `C3err, C4err, C5err, C6err, C7err, C8err, PFOSerr`  
 as well as for a column for whether C8 (PFNA) was measured (True/False or 1/0):  
 `C8incl`  
 and the name of the prior to use:  
 `prior_name`  
 
-Method errors can be assessed by the relative difference of replicate analyses
-of the same sample. You can use total method error by setting all err columns
-equal to the total relative difference or compound specific method errors by
+Method errors can be assessed in multiple ways including by the relative percent difference of replicate analyses of the same sample. You can use total method error by setting all err columns equal to the same value or compound specific method errors by
 setting C3-C8err and PFOSerr to their own values.
 
 # Output
@@ -75,6 +75,14 @@ output file are index in python by column as:
 `{0 : 4:2 FT precursors, 1 : 6:2 FT precursors, 2 : 8:2 FT precursors,
   3 : C4 ECF precursors, 4 : C5 ECF precursors, 5 : C6 ECF precursors
   6 : C7 ECF precursors, 7 : C8 ECF precursors}`
+
+# Example data
+Two datasets are provided as examples
+* 'AFFF_stocks.csv' which contains TOP assay data from ECF and fluorotelomer AFFF
+reported by [Ruyle et al. 2021a](http://dx.doi.org/10.1021/acs.estlett.0c00798) and
+[Houtz et al. 2013](https://doi.org/10.1021/es4018877).
+* 'Cape_Cod_rivers.csv' which contains TOP assay data from surface water on Cape
+Cod, Massachusetts, USA reported by [Ruyle et al. 2021b](http://dx.doi.org/10.1021/acs.est.0c07296)
 
 # Python dependencies
 Python >= 3.7  
