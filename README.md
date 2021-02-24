@@ -10,7 +10,7 @@ sample with the appropriate choice of a prior. This package
 provides one built-in prior:
   * prior_AFFF – used for AFFF stocks ([Ruyle et al. 2021a](http://dx.doi.org/10.1021/acs.estlett.0c00798))
   * prior_AFFF_impacted – used for AFFF impacted water ([Ruyle et al. 2021b](http://dx.doi.org/10.1021/acs.est.0c07296))
-  * prior_unknown – used for water with unknown PFAS point sources ([Ruyle et al. 2021](http://dx.doi.org/10.1021/acs.est.0c07296))  
+  * prior_unknown – used for water with unknown PFAS point sources ([Ruyle et al. 2021b](http://dx.doi.org/10.1021/acs.est.0c07296))  
 
 These priors can be used as a template and adapted for other specific purposes.
 
@@ -23,11 +23,11 @@ These priors can be used as a template and adapted for other specific purposes.
 This model was created by
 [Colin P. Thackray](https://scholar.harvard.edu/thackray/about) and
 [Bridger J. Ruyle](https://scholar.harvard.edu/ruyle) and originally
-presented in [Ruyle et al. 2020](http://dx.doi.org/10.1021/acs.estlett.0c00798)
+presented in [Ruyle et al. 2021a](http://dx.doi.org/10.1021/acs.estlett.0c00798)
 
 ### Citation for code:
 
-Ruyle, B. J.; Thackray, C. P.; McCord, J. P.; Strynar, M. J.; Mauge-Lewis, K. A.; Fenton, S. E.; Sunderland, E. M. Reconstructing the Composition of Per- and Polyfluoroalkyl Substances (PFAS) in Contemporary Aqueous Film Forming Foams. Environ. Sci. Technol. Lett. 2020. [https://doi.org/10.1021/acs.estlett.0c00798](http://dx.doi.org/10.1021/acs.estlett.0c00798).
+Ruyle, B. J.; Thackray, C. P.; McCord, J. P.; Strynar, M. J.; Mauge-Lewis, K. A.; Fenton, S. E.; Sunderland, E. M. Reconstructing the Composition of Per- and Polyfluoroalkyl Substances (PFAS) in Contemporary Aqueous Film Forming Foams. Environ. Sci. Technol. Lett. 2021, 8(1), 59-65. [https://doi.org/10.1021/acs.estlett.0c00798](http://dx.doi.org/10.1021/acs.estlett.0c00798).
 
 # Command line options
 usage: `infer_precursors.py [-h] [-d FILENAME] [-o OUTFILE_STEM] [-t TARGET] [-m MAX_STEPS] [-D MAX_DEPTH] istart [iend]`
