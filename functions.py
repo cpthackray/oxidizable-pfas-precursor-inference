@@ -165,7 +165,7 @@ def prior_AFFF(x, **kwargs):
     PFOS, MDL = PFOS2
 
     emin, emax = 0, 2
-    
+
     x_p = 10**x[:-1]
     e_p = x[-1]
     ecf = np.sum(x_p[3:])  # sum only the ECF precursors
@@ -189,7 +189,7 @@ def prior_AFFF(x, **kwargs):
         logprob += 0
     else:
         logprob += BIGNEG
-    
+
 
     # Evaluate the composition of ECF precursor proposal against their
     # composition reported in 3M AFFF in Houtz et al. Table S6 assuming that
@@ -206,9 +206,111 @@ def prior_AFFF(x, **kwargs):
             logprob += BIGNEG
     if e_p < MINVAL:
         logprob += BIGNEG
-        
+
     return logprob
 
+def prior_AFFF_impacted(x, **kwargs):
+    """Prior log-probability of proposal x.
+
+    Prior used for environmental samples where predominant PFAS source
+    is thought to be AFFF.
+
+    Arguments:
+    x (array) proposal precursors
+
+    Keyword arguments:
+    PFOS (tuple(float,float)) observed PFOS and PFOS MDL
+
+    Returns:
+    (float) log-prior
+    """
+    PFOS2 = kwargs.get('PFOS')
+    logprob = 0
+    PFOS, MDL = PFOS2
+
+    emin, emax = 0, 2
+
+    x_p = 10**x[:-1]
+    e_p = x[-1]
+    ecf = np.sum(x_p[3:])  # sum only the ECF precursors
+
+    # the sum of ECF precursors should fall inside of lower and upper bounds
+    # of the ratio of TOP assay precursors (corrected for their PFCA yield
+    # [88±12%]) to PFOS reported in 3M AFFF in Houtz et al. Tables S5 and S6
+    lowratio = 0.84
+    highratio = 2.73
+    if PFOS < MDL:
+        PFOS = MDL / np.sqrt(2)
+        lowratio = 0
+    pmin, pmax = PFOS * lowratio, PFOS * highratio
+
+    if pmin < ecf < pmax:
+        logprob = 0
+    else:
+        logprob = BIGNEG
+
+    if emin < e_p < emax:
+        logprob += 0
+    else:
+        logprob += BIGNEG
+
+
+    # Evaluate the composition of ECF precursor proposal against their
+    # composition reported in 3M AFFF in Houtz et al. Table S6 assuming that
+    # the oxidation yields of ECF precursors do not depend on their
+    # perfluorinated chain length (n)
+    ecf_comp = x_p[3:] / ecf
+    logprob += -(np.sum(np.abs((ecf_comp - fmeans) / (fstds))**2))
+
+    for i, xi in enumerate(x):
+        if xi < MINVAL:
+            # don't let it waste time wandering arbitrarily low
+            logprob += BIGNEG
+        if xi > MAXVAL:  # or high
+            logprob += BIGNEG
+    if e_p < MINVAL:
+        logprob += BIGNEG
+
+    return logprob
+
+def prior_unknown(x, **kwargs):
+    """Prior log-probability of proposal x.
+
+    Prior used for environmental samples where predominant PFAS source
+    is unknown.
+
+    Arguments:
+    x (array) proposal precursors
+
+    Keyword arguments:
+    b (array of floats) measured molar increases in PFCA from TOP assay
+
+    Returns:
+    (float) log-prior
+    """
+
+    cost = 0
+
+    b = kwargs.get('b')
+    meassum = b.sum()
+
+    x_p = 10**x
+    totp = np.sum(x_p)
+
+    # Prevent inference from infering solutions with more than 10x the
+    # measured mass
+    if 1 < totp/meassum<10:
+        cost += 0
+    else:
+        cost += -1e32
+
+    for i,xi in enumerate(x):
+        if xi < MINVAL:
+            # don't let it waste time wandering arbitrarily low
+            cost += -1e32
+        if xi > MAXVAL: # or high
+            cost += -1e32
+    return cost
 
 def makeb(meas, C8=True):
     """Make the measurement array b.
@@ -230,6 +332,5 @@ def makeb(meas, C8=True):
     else:
         return meas[:5]
 
-
 # Collect priors by name for easy lookup
-priors = {'AFFF': prior_AFFF, }
+priors = {'AFFF': prior_AFFF,'AFFF_impacted':prior_AFFF_impacted,'unknown':prior_unknown}
