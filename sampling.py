@@ -82,7 +82,7 @@ class Tuner(object):
         return self.alphas[best]
 
 
-def prob_func(x, b, mdls, berr, prior, PFOS, C8):
+def prob_func(x, meas, prior):
     """ log-probability of posterior.
 
     Takes current state vector and obs vector
@@ -104,18 +104,19 @@ def prob_func(x, b, mdls, berr, prior, PFOS, C8):
     """
 
     # log-posterior, so sum prior and likelihood
-    lp = priors[prior](x, PFOS=PFOS, b=b)
+    lp = priors[prior](x, meas)
 
     if not np.isfinite(lp):
         return BIGNEG
-    ll = likelihood(x, b, mdls, berr, C8)
+    ll = likelihood(x, meas)
     if not np.isfinite(ll):
         return BIGNEG
+#    print(ll,lp)
     return ll + lp
 
 
-def sample_measurement(b, mdls, berr, PFOS, prior='AFFF',
-                       C8=False, nwalkers=32,
+def sample_measurement(meas, prior='AFFF',
+                       nwalkers=32,
                        Nincrement=2000, TARGET_EFFECTIVE_STEPS=2500,
                        MAX_STEPS=100000, MAX_DEPTH=3):
     """For a given measurement b, sample the posterior.
@@ -159,7 +160,7 @@ def sample_measurement(b, mdls, berr, PFOS, prior='AFFF',
         sampler = emcee.EnsembleSampler(nwalkers,
                                         ndim,
                                         prob_func,
-                                        args=(b, mdls, berr, prior, PFOS, C8),
+                                        args=(meas, prior),
                                         moves=[(DESnookerMove(alpha),
                                                 1.0)])
         init = np.random.rand(nwalkers, ndim)

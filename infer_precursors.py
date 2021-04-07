@@ -9,7 +9,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from sampling import sample_measurement
-from functions import makeb
+from lib import Measurements, makeb
 
 # Command line arguments
 parser = argparse.ArgumentParser(
@@ -43,40 +43,20 @@ if args.IEND is None:
 df = pd.read_csv(args.FILENAME)
 names = df['Sample'].values
 
-measurements = df[['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'PFOS']].values
-inmdlss = df[['C3MDL', 'C4MDL', 'C5MDL', 'C6MDL', 'C7MDL', 'C8MDL',
-              'PFOSMDL']].values
-inobserrs = df[['C3err', 'C4err', 'C5err', 'C6err', 'C7err', 'C8err',
-                'PFOSerr']].values
-nmeas = measurements.shape[0]
-measures = measurements
-mdlss = inmdlss
-errs = inobserrs
 
 # Do sampling for requested measurements
 for bi in range(args.ISTART, args.IEND+1):
     print('Calculating for sample ' + df['Sample'][bi], end='')
 
-    PFOS = (measures[bi, 6], mdlss[bi, 6])
-
-    # Not everyone measures C8 (PFNA), but if measured should be used.
-    C8 = df['C8incl'][bi]  # Boolean
-
-    # Generate obs and MDL arrays
-    mdls = makeb(mdlss[bi, :6], C8=C8)
-    b = makeb(measures[bi, :6], C8=C8)
-    berr = makeb(errs[bi, :6], C8=C8)
-
     prior_name = df['prior_name'][bi]
     print(f' with prior {prior_name}.')
 
+    measurementdata = Measurements()
+    measurementdata.from_row(df.iloc[bi])
+    
     # Run MCMC ensemble to sample posterior
-    sampler = sample_measurement(b,
-                                 mdls,
-                                 berr,
-                                 PFOS,
+    sampler = sample_measurement(measurementdata,
                                  prior=prior_name,
-                                 C8=C8,
                                  Nincrement=1000,
                                  TARGET_EFFECTIVE_STEPS=args.TARGET,
                                  MAX_STEPS=args.MAX_STEPS,

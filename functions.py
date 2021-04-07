@@ -92,7 +92,7 @@ def makeA():
     return (A, U)
 
 
-def likelihood(x, b, mdls, berr, C8):
+def likelihood(x, meas):
     """log-likelihood of x given b.
 
     Calculates the log-probability of x given observations b,
@@ -109,6 +109,14 @@ def likelihood(x, b, mdls, berr, C8):
     Returns:
     (float) log-likelihood
     """
+    b = meas.b
+    bpre = meas.bpre
+    bpost = meas.bpost
+    
+    mdls = meas.mdls
+    berr = meas.berr
+    C8 = meas.isC8
+    
     x_p = 10**x[:-1]  # transform from log space
 
     logprob = 0
@@ -126,27 +134,32 @@ def likelihood(x, b, mdls, berr, C8):
     obserr = berr
     toterr = (moderr**2 + obserr**2 + e_p**2)**0.5
 
-    for i in range(len(b)):
-        if b[i] <= mdls[i]:
-            # non-detect
-            obsmin = MINVAL  # don't want -inf
-            obsmax = np.log10(mdls[i] / np.sqrt(2))
-            if obsmin <= mod[i] < obsmax:
-                logprob += 0
-            elif mod[i] > obsmax:
-                logprob += -((mod[i] - obsmax) / toterr[i])**2
+    if ((bpre is not None) and (bpost is not None)):
+        ## Bridger put your code here
+        print('Put difference-based code here')
+        
+    else:
+        for i in range(len(b)):
+            if b[i] <= mdls[i]:
+                # non-detect
+                obsmin = MINVAL  # don't want -inf
+                obsmax = np.log10(mdls[i] / np.sqrt(2))
+                if obsmin <= mod[i] < obsmax:
+                    logprob += 0
+                elif mod[i] > obsmax:
+                    logprob += -((mod[i] - obsmax) / toterr[i])**2
+                else:
+                    logprob += BIGNEG
             else:
-                logprob += BIGNEG
-        else:
-            obs = np.log10(b[i])
-            logprob += -((mod[i] - obs) / toterr[i])**2
+                obs = np.log10(b[i])
+                logprob += -((mod[i] - obs) / toterr[i])**2
 
     if np.isnan(logprob):
         print(x_p, A)
     return logprob
 
 
-def prior_AFFF(x, **kwargs):
+def prior_AFFF(x, meas):
     """Prior log-probability of proposal x.
 
     Prior used for AFFF samples.
@@ -160,7 +173,7 @@ def prior_AFFF(x, **kwargs):
     Returns:
     (float) log-prior
     """
-    PFOS2 = kwargs.get('PFOS')
+    PFOS2 = meas.pfos
     logprob = 0
     PFOS, MDL = PFOS2
 
@@ -209,7 +222,7 @@ def prior_AFFF(x, **kwargs):
 
     return logprob
 
-def prior_AFFF_impacted(x, **kwargs):
+def prior_AFFF_impacted(x, meas):
     """Prior log-probability of proposal x.
 
     Prior used for environmental samples where predominant PFAS source
@@ -224,7 +237,7 @@ def prior_AFFF_impacted(x, **kwargs):
     Returns:
     (float) log-prior
     """
-    PFOS2 = kwargs.get('PFOS')
+    PFOS2 = meas.pfos
     logprob = 0
     PFOS, MDL = PFOS2
 
@@ -273,7 +286,7 @@ def prior_AFFF_impacted(x, **kwargs):
 
     return logprob
 
-def prior_unknown(x, **kwargs):
+def prior_unknown(x, meas):
     """Prior log-probability of proposal x.
 
     Prior used for environmental samples where predominant PFAS source
@@ -291,7 +304,7 @@ def prior_unknown(x, **kwargs):
 
     cost = 0
 
-    b = kwargs.get('b')
+    b = meas.b
     meassum = b.sum()
 
     x_p = 10**x
@@ -312,25 +325,6 @@ def prior_unknown(x, **kwargs):
             cost += -1e32
     return cost
 
-def makeb(meas, C8=True):
-    """Make the measurement array b.
-
-    b is a 6x1 array of measurements C3-C8 if C8=True
-    else, b is a 5x1 array of measurements C3-C7
-
-    Arguments:
-    meas (array) measurement values
-
-    Keyword arguments:
-    C8 (boolean) whether C8 was measured.
-
-    Returns:
-    (array) measurement array
-    """
-    if C8:
-        return meas
-    else:
-        return meas[:5]
 
 # Collect priors by name for easy lookup
 priors = {'AFFF': prior_AFFF,'AFFF_impacted':prior_AFFF_impacted,'unknown':prior_unknown}
