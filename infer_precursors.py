@@ -9,7 +9,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from sampling import sample_measurement
-from lib import Measurements, makeb
+from lib import Measurements, Config
 
 # Command line arguments
 parser = argparse.ArgumentParser(
@@ -53,9 +53,15 @@ for bi in range(args.ISTART, args.IEND+1):
 
     measurementdata = Measurements()
     measurementdata.from_row(df.iloc[bi])
+
+    config = Config(measurementdata.configfile)
+    config.setup_model(measurementdata.whats_measured,
+                       precursor_list=['4:2 FT', '6:2 FT', '8:2 FT',
+                                       'C4 ECF', 'C5 ECF', 'C6 ECF', 'C7 ECF', 'C8 ECF'])
+    print(config.model.shape)
     
     # Run MCMC ensemble to sample posterior
-    sampler = sample_measurement(measurementdata,
+    sampler = sample_measurement(measurementdata, config,
                                  prior=prior_name,
                                  Nincrement=1000,
                                  TARGET_EFFECTIVE_STEPS=args.TARGET,

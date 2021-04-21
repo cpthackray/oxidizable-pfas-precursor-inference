@@ -1,6 +1,6 @@
 import numpy as np
 from functions import priors, likelihood
-from functions import BIGNEG
+from functions import BIGNEG, MINVAL, MAXVAL
 import emcee
 from emcee.autocorr import AutocorrError
 from emcee.moves import DESnookerMove
@@ -82,7 +82,7 @@ class Tuner(object):
         return self.alphas[best]
 
 
-def prob_func(x, meas, prior):
+def prob_func(x, meas, config, prior):
     """ log-probability of posterior.
 
     Takes current state vector and obs vector
@@ -104,18 +104,18 @@ def prob_func(x, meas, prior):
     """
 
     # log-posterior, so sum prior and likelihood
-    lp = priors[prior](x, meas)
+    lp = priors[prior](x, meas, config)
 
     if not np.isfinite(lp):
         return BIGNEG
-    ll = likelihood(x, meas)
+    ll = likelihood(x, meas, config)
     if not np.isfinite(ll):
         return BIGNEG
 #    print(ll,lp)
     return ll + lp
 
 
-def sample_measurement(meas, prior='AFFF',
+def sample_measurement(meas, config, prior='AFFF',
                        nwalkers=32,
                        Nincrement=2000, TARGET_EFFECTIVE_STEPS=2500,
                        MAX_STEPS=100000, MAX_DEPTH=3):
@@ -145,7 +145,7 @@ def sample_measurement(meas, prior='AFFF',
     (emcee.EnsembleSampler) ensemble of samplers with results
     """
 
-    ndim = 9
+    ndim = len(config.possible_precursors)+1
     WEGOOD = False
 
     tuner = Tuner(max_depth=MAX_DEPTH)
@@ -160,22 +160,22 @@ def sample_measurement(meas, prior='AFFF',
         sampler = emcee.EnsembleSampler(nwalkers,
                                         ndim,
                                         prob_func,
-                                        args=(meas, prior),
+                                        args=(meas, config, prior),
                                         moves=[(DESnookerMove(alpha),
                                                 1.0)])
-        init = np.random.rand(nwalkers, ndim)
-        state = sampler.run_mcmc(init, Nincrement)
+        init = np.random.rand(nwalkers, ndim)*(MAXVAL-MINVAL)+MINVAL
+        state = sampler.run_mcmc(init, Nincrement*5)
         sampler.reset()
-        INIT = False
+        INIT = True
         S = 1
-        while not INIT:
-            try:
-                state = sampler.run_mcmc(state, Nincrement)
-                INIT = True
-            except ValueError:
-                print('...')
-                state = sampler.run_mcmc(init, Nincrement*S)
-                S *= 1.5
+#        while not INIT:
+ #           try:
+        state = sampler.run_mcmc(state, Nincrement, skip_initial_state_check=True)
+        #INIT = True
+         #   except ValueError as e:
+          #      print(e,'...')
+           #     state = sampler.run_mcmc(init, Nincrement*S)
+            #    S *= 1.5
 
         f_accept = np.mean(sampler.acceptance_fraction)
         print(f'acceptance rate is {np.mean(f_accept):.2f} when alpha is {alpha}')
@@ -188,7 +188,7 @@ def sample_measurement(meas, prior='AFFF',
     Nindep = 1
     sampler.reset()
     while (not WEGOOD) and (count < MAX_STEPS):
-        state = sampler.run_mcmc(state, Nincrement)
+        state = sampler.run_mcmc(state, Nincrement, skip_initial_state_check=True)
         f_accept = np.mean(sampler.acceptance_fraction)
         count += Nincrement
         try:
@@ -207,7 +207,7 @@ def sample_measurement(meas, prior='AFFF',
         if Nindep < prev_Nindep:
             print("WARNING: Number of independent samples decreasing!")
 
-        state = sampler.run_mcmc(state, Nincrement)
+        state = sampler.run_mcmc(state, Nincrement, skip_initial_state_check=True)
         f_accept = np.mean(sampler.acceptance_fraction)
         count += Nincrement
         try:
