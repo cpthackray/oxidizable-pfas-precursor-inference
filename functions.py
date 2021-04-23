@@ -4,39 +4,6 @@ import pandas as pd
 BIGNEG = -1e32
 MINVAL, MAXVAL = -6, 4
 
-# TOP assay yields of representative n:2 FT and ECF precursors
-# reported in the literature
-# Average of n:2 FTs reported in Houtz and Sedlak Table 1, 2012
-# and Martin et al. 2019 Table 1
-x_ft = [
-    0.0245, 0.1850, 0.2874, 0.1943, 0.1425, 0.0867
-]
-# Standard deviation of average n:2 FTs reported in Houtz
-# and Sedlak Table 1, 2012 and Martin et al. 2019 Table 1
-err_ft = [
-    0.0065, 0.0721, 0.0435, 0.0207, 0.0171, 0.0252
-]
-# Average of ECF precursors reported in Houtz and Sedlak 2012 Table 1,
-# Martin et al. 2019 Table 1, Janda et al. 2019 Table 1,
-# and internal data of PFHxSAm (88% yield to Cn-1)
-# and PFHxSAmS (87% yield to Cn-1)
-x_ecf = [
-    0, 0.869, 0.0085, 0, 0, 0,
-]
-# Standard deviation of average ECF precursors reported in Houtz
-# and Sedlak 2012 Table 1, Martin et al. 2019 Table 1, Janda et al. 2019
-# Table 1, and internal data of PFHxSAm (88% yield to Cn-1)
-# and PFHxSAmS (87% yield to Cn-1)
-err_ecf = [
-    0, 0.1144, 0.0089, 0, 0, 0
-]
-
-# Prior information: the ratio of PFOS to ECF precursors in ECF AFFF
-# From Houtz et al. 2013 Table S5 and S6
-ECFcomp = pd.read_csv('data/3M_AFFF_Compositions.csv')
-chains = [f'C{x}' for x in range(4, 11)]
-fmeans = np.array([np.mean(ECFcomp[c]) for c in chains])
-fstds = np.array([np.std(ECFcomp[c]) for c in chains])
 
 def likelihood(x, meas, config):
     """log-likelihood of x given b.
@@ -75,7 +42,7 @@ def likelihood(x, meas, config):
     mod = np.log10(mm)
 
     # errors
-    e_p = x[-1] # error parameter
+    e_p = x[-1]  # error parameter
     moderr = (uu / mm)  # fractional error
     obserr = berr
     toterr = (moderr**2 + obserr**2 + e_p**2)**0.5
@@ -164,13 +131,13 @@ def prior_AFFF(x, meas, config):
     else:
         logprob += BIGNEG
 
-
     # Evaluate the composition of ECF precursor proposal against their
     # composition reported in 3M AFFF in Houtz et al. Table S6 assuming that
     # the oxidation yields of ECF precursors do not depend on their
     # perfluorinated chain length (n)
     ecf_comp = x_p[3:] / ecf
-    logprob += -(np.sum(np.abs((ecf_comp - config.compmeans) / (2 * config.compstds))**2))
+    logprob += - \
+        (np.sum(np.abs((ecf_comp - config.compmeans) / (2 * config.compstds))**2))
 
     for i, xi in enumerate(x):
         if xi < MINVAL:
@@ -182,6 +149,7 @@ def prior_AFFF(x, meas, config):
         logprob += BIGNEG
 
     return logprob
+
 
 def prior_AFFF_impacted(x, meas, config):
     """Prior log-probability of proposal x.
@@ -228,13 +196,13 @@ def prior_AFFF_impacted(x, meas, config):
     else:
         logprob += BIGNEG
 
-
     # Evaluate the composition of ECF precursor proposal against their
     # composition reported in 3M AFFF in Houtz et al. Table S6 assuming that
     # the oxidation yields of ECF precursors do not depend on their
     # perfluorinated chain length (n)
     ecf_comp = x_p[config.ecf_indices] / ecf
-    logprob += -(np.sum(np.abs((ecf_comp - config.compmeans) / (config.compstds))**2))
+    logprob += - \
+        (np.sum(np.abs((ecf_comp - config.compmeans) / (config.compstds))**2))
 
     for i, xi in enumerate(x):
         if xi < MINVAL:
@@ -246,6 +214,7 @@ def prior_AFFF_impacted(x, meas, config):
         logprob += BIGNEG
 
     return logprob
+
 
 def prior_unknown(x, meas, config):
     """Prior log-probability of proposal x.
@@ -279,19 +248,20 @@ def prior_unknown(x, meas, config):
 
     # Prevent inference from infering solutions with more than 10x the
     # measured mass
-    if 1 < totp/meassum<10:
+    if 1 < totp/meassum < 10:
         cost += 0
     else:
         cost += BIGNEG
 
-    for i,xi in enumerate(x):
+    for i, xi in enumerate(x):
         if xi < MINVAL:
             # don't let it waste time wandering arbitrarily low
             cost += -BIGNEG
-        if xi > MAXVAL: # or high
+        if xi > MAXVAL:  # or high
             cost += -BIGNEG
     return cost
 
 
 # Collect priors by name for easy lookup
-priors = {'AFFF': prior_AFFF,'AFFF_impacted':prior_AFFF_impacted,'unknown':prior_unknown}
+priors = {'AFFF': prior_AFFF,
+          'AFFF_impacted': prior_AFFF_impacted, 'unknown': prior_unknown}
