@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import yaml
 
 BIGNEG = -1e32
 MINVAL, MAXVAL = -2, 7
@@ -104,29 +105,14 @@ def makeA():
 
     return (A, U)
 
-def makeb(meas, C8=True):
-    """Make the measurement array b.
-
-    b is a 6x1 array of measurements C3-C8 if C8=True
-    else, b is a 5x1 array of measurements C3-C7
-
-    Arguments:
-    meas (array) measurement values
-
-    Keyword arguments:
-    C8 (boolean) whether C8 was measured.
-
-    Returns:
-    (array) measurement array
-    """
-    if C8:
-        return meas
-    else:
-        return meas[:5]
 
 class Config(object):
     def __init__(self, filename):
-        self.possible_precursors = precursor_order
+        ym = yaml.safe_load(open(filename,'r'))
+        input_precursors = ym['possible_precursors']
+        prior_name = ym['prior_name']
+        self.possible_precursors = input_precursors
+        self.prior_name = prior_name
         A,U = makeA()
         self.full_model = A
         self.full_uncertainty = U
@@ -139,9 +125,6 @@ class Config(object):
     def _set_measured(self, measured_list):
         self.measured = measured_list
 
-    def _set_precursors(self, precursor_list):
-        self.possible_precursors = precursor_list
-        
     def _subset_model(self):
         choosep = []
         for p in self.possible_precursors:
@@ -175,14 +158,22 @@ class Config(object):
         self.compmeans = np.array(compmeans)
         self.compstds = np.array(compstds)
         
-    def setup_model(self, measured_list, precursor_list=None):
-        if precursor_list is None:
-            precursor_list = precursor_order
-        self._set_precursors(precursor_list)
+    def setup_model(self, measured_list):
         self._set_measured(measured_list)
         self._subset_model()
         self._set_ecf_ft_indices()
-        
+
+
+all_keys = ['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10', 'PFOS',
+            'C3pre', 'C4pre', 'C5pre', 'C6pre', 'C7pre', 'C8pre',
+            'C9pre', 'C10pre', 'PFOSpre',
+            'C3post', 'C4post', 'C5post', 'C6post', 'C7post', 'C8post',
+            'C9post', 'C10post', 'PFOSpost',
+            'C3MDL', 'C4MDL', 'C5MDL', 'C6MDL', 'C7MDL', 'C8MDL',
+            'C9MDL', 'C10MDL', 'PFOSMDL',
+            'C3err', 'C4err', 'C5err', 'C6err', 'C7err', 'C8err',
+            'C9err', 'C10err', 'PFOSerr']
+            
 class Measurements(object):
     def __init__(self, b=None, bpre=None, bpost=None,
                  pfos=None, C8=False, mdls=None, errs=None):
@@ -193,50 +184,77 @@ class Measurements(object):
         self.isC8 = C8
         self.mdls = mdls
         self.errs = errs
-        self.whats_measured = ['C3', 'C4', 'C5', 'C6', 'C7']
-        self.configfile = 'config.yaml'
+        self.whats_measured = ['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
+        self.configfile = 'config/AFFF.yaml'
         
     def from_row(self, dfrow):
 
-        measurements = dfrow[['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'PFOS']].values
-        try:
-            premeas = dfrow[['C3pre', 'C4pre', 'C5pre', 'C6pre',
-                      'C7pre', 'C8pre', 'PFOSpre']].values
-        except KeyError:
-            print("key error")
-            premeas = None
-        try:
-            postmeas = dfrow[['C3post', 'C4post', 'C5post', 'C6post',
-                              'C7post', 'C8post', 'PFOSpost']].values
-        except KeyError:
-            postmeas = None
-        inmdlss = dfrow[['C3MDL', 'C4MDL', 'C5MDL', 'C6MDL', 'C7MDL', 'C8MDL',
-                      'PFOSMDL']].values
-        inobserrs = dfrow[['C3err', 'C4err', 'C5err', 'C6err', 'C7err', 'C8err',
-                        'PFOSerr']].values
-        nmeas = measurements.shape[0]
-        measures = measurements
-        mdlss = inmdlss
-        errs = inobserrs
+        measured_values = {}
+        whats_measured = []
+        PREPOST = False
+        present_keys = dfrow.keys()
+        for key in present_keys:
+            if key in all_keys:
+                val = dfrow[key]
+                if not np.isnan(val):
+                    if (not PREPOST) and key.endswith('pre'):
+                        PREPOST = True
+                    measured_values[key] = val
 
-        try:
-            cfg = dfrow['config']
-        except:
-            cfg = 'config.yaml'
+        for chain in ['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10']:
+            if (chain+'MDL' in measured_values) and (chain+'err' in measured_values):
+                pass
+            else:
+                continue
+            if PREPOST:
+                if (chain+'pre' in measured_values) and (chain+'post' in measured_values):
+                    pass
+                else:
+                    continue
+            else:
+                if chain in measured_values:
+                    pass
+                else:
+                    continue
+            whats_measured.append(chain)
+
+        self.whats_measured = whats_measured
         
 
-        PFOS = (measures[6], mdlss[6])
-        C8 = dfrow['C8incl']
-        mdls = makeb(mdlss[:6], C8=C8)
-        b = makeb(measures[:6], C8=C8)
-        berr = makeb(errs[:6], C8=C8)
+        try:
+            cfg = 'config/'+dfrow['config']
+        except KeyError:
+            cfg = 'config/AFFF.yaml'
+
+        if PREPOST:
+            b = None
+            bpre = []
+            bpost = []
+            for chain in whats_measured:
+                bpre.append(dfrow[chain+'pre'])
+                bpost.append(dfrow[chain+'post'])
+            bpre = np.array(bpre)
+            bpost = np.array(bpost)
+        else:
+            bpre = None
+            bpost = None
+            b = []
+            for chain in whats_measured:
+                b.append(dfrow[chain])
+            b = np.array(b)
+        mdls = []
+        berr = []
+        for chain in whats_measured:
+            mdls.append(dfrow[chain+'MDL'])
+            berr.append(dfrow[chain+'err'])
+
+        PFOS = (dfrow['PFOS'], dfrow['PFOSMDL'])
                 
         self.b = b
-        self.bpre = premeas
-        self.bpost = postmeas
-        self.mdls = mdls
-        self.berr = berr
-        self.isC8 = C8
+        self.bpre = bpre
+        self.bpost = bpost
+        self.mdls = np.array(mdls)
+        self.berr = np.array(berr)
         self.pfos = PFOS
         self.configfile = cfg
     

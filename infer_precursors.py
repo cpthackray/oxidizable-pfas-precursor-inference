@@ -48,18 +48,16 @@ names = df['Sample'].values
 for bi in range(args.ISTART, args.IEND+1):
     print('Calculating for sample ' + df['Sample'][bi], end='')
 
-    prior_name = df['prior_name'][bi]
-    print(f' with prior {prior_name}.')
 
     measurementdata = Measurements()
     measurementdata.from_row(df.iloc[bi])
 
     config = Config(measurementdata.configfile)
-    config.setup_model(measurementdata.whats_measured,
-                       precursor_list=['4:2 FT', '6:2 FT', '8:2 FT',
-                                       'C4 ECF', 'C5 ECF', 'C6 ECF', 'C7 ECF', 'C8 ECF'])
-    print(config.model.shape)
-    
+    config.setup_model(measurementdata.whats_measured)
+    prior_name = config.prior_name
+    print(f' with prior {prior_name}.')
+    print('Measured chains:', config.measured)
+    print('Possible precursors:', config.possible_precursors)
     # Run MCMC ensemble to sample posterior
     sampler = sample_measurement(measurementdata, config,
                                  prior=prior_name,

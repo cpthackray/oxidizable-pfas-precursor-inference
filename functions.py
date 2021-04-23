@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 BIGNEG = -1e32
-MINVAL, MAXVAL = -2, 7
+MINVAL, MAXVAL = -6, 4
 
 # TOP assay yields of representative n:2 FT and ECF precursors
 # reported in the literature
@@ -80,15 +80,15 @@ def likelihood(x, meas, config):
     obserr = berr
     toterr = (moderr**2 + obserr**2 + e_p**2)**0.5
 
-    ##NEW WHAT BRIDGER WROTE
+    # concentrations by difference
     if ((bpre is not None) and (bpost is not None)):
-        for i in range(len(b)):
+        for i in range(len(bpre)):
             delta = bpost[i] - bpre[i]
             rsd = bpre[i]*berr[i]
             if delta <= rsd:
                 # change in PFCA concentration is indistinguishable from experimental error
                 obsmin = MINVAL  # don't want -inf
-                obsmax = rsd
+                obsmax = np.log10(rsd)
                 if obsmin <= mod[i] < obsmax:
                     logprob += 0
                 elif mod[i] > obsmax:
@@ -247,7 +247,7 @@ def prior_AFFF_impacted(x, meas, config):
 
     return logprob
 
-def prior_unknown(x, meas):
+def prior_unknown(x, meas, config):
     """Prior log-probability of proposal x.
 
     Prior used for environmental samples where predominant PFAS source
@@ -266,7 +266,13 @@ def prior_unknown(x, meas):
     cost = 0
 
     b = meas.b
-    meassum = b.sum()
+    bpre = meas.bpre
+    bpost = meas.bpost
+
+    if (bpre is not None) and (bpost is not None):
+        meassum = (bpost-bpre).sum()
+    else:
+        meassum = b.sum()
 
     x_p = 10**x[:-1]
     totp = np.sum(x_p)
