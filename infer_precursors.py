@@ -48,7 +48,6 @@ names = df['Sample'].values
 for bi in range(args.ISTART, args.IEND+1):
     print('Calculating for sample ' + df['Sample'][bi], end='')
 
-
     measurementdata = Measurements()
     measurementdata.from_row(df.iloc[bi])
 
@@ -58,6 +57,7 @@ for bi in range(args.ISTART, args.IEND+1):
     print(f' with prior {prior_name}.')
     print('Measured chains:', config.measured)
     print('Possible precursors:', config.possible_precursors)
+
     # Run MCMC ensemble to sample posterior
     sampler = sample_measurement(measurementdata, config,
                                  prior=prior_name,
@@ -67,6 +67,6 @@ for bi in range(args.ISTART, args.IEND+1):
                                  MAX_DEPTH=args.MAX_DEPTH)
 
     # Save sampling output to disk
-    trajectory = sampler.flatchain[:,:-1]
+    trajectory = sampler.flatchain[:, :-1]
     outfile = f'{args.OUTFILE_STEM}{bi}'
     np.save(outfile, trajectory)

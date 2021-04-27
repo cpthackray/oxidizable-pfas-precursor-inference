@@ -11,6 +11,7 @@ class Tuner(object):
     Tracks previous trials and generates new trials
     along with when to stop.
     """
+
     def __init__(self, max_depth=3):
         """max_depth determines how granular a search for
         the optimal parameter value is conducted.
@@ -166,19 +167,13 @@ def sample_measurement(meas, config, prior='AFFF',
         init = np.random.rand(nwalkers, ndim)*(MAXVAL-MINVAL)+MINVAL
         state = sampler.run_mcmc(init, Nincrement*5)
         sampler.reset()
-        INIT = True
         S = 1
-#        while not INIT:
- #           try:
-        state = sampler.run_mcmc(state, Nincrement, skip_initial_state_check=True)
-        #INIT = True
-         #   except ValueError as e:
-          #      print(e,'...')
-           #     state = sampler.run_mcmc(init, Nincrement*S)
-            #    S *= 1.5
+        state = sampler.run_mcmc(
+            state, Nincrement, skip_initial_state_check=True)
 
         f_accept = np.mean(sampler.acceptance_fraction)
-        print(f'acceptance rate is {np.mean(f_accept):.2f} when alpha is {alpha}')
+        print(
+            f'acceptance rate is {np.mean(f_accept):.2f} when alpha is {alpha}')
         tuner.update(alpha, f_accept)
 
     print(f'Sampling posterior in {Nincrement}-iteration increments.')
@@ -188,7 +183,8 @@ def sample_measurement(meas, config, prior='AFFF',
     Nindep = 1
     sampler.reset()
     while (not WEGOOD) and (count < MAX_STEPS):
-        state = sampler.run_mcmc(state, Nincrement, skip_initial_state_check=True)
+        state = sampler.run_mcmc(
+            state, Nincrement, skip_initial_state_check=True)
         f_accept = np.mean(sampler.acceptance_fraction)
         count += Nincrement
         try:
@@ -207,7 +203,8 @@ def sample_measurement(meas, config, prior='AFFF',
         if Nindep < prev_Nindep:
             print("WARNING: Number of independent samples decreasing!")
 
-        state = sampler.run_mcmc(state, Nincrement, skip_initial_state_check=True)
+        state = sampler.run_mcmc(
+            state, Nincrement, skip_initial_state_check=True)
         f_accept = np.mean(sampler.acceptance_fraction)
         count += Nincrement
         try:

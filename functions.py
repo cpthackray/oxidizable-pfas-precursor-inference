@@ -256,9 +256,9 @@ def prior_unknown(x, meas, config):
     for i, xi in enumerate(x):
         if xi < MINVAL:
             # don't let it waste time wandering arbitrarily low
-            cost += -BIGNEG
+            cost += BIGNEG
         if xi > MAXVAL:  # or high
-            cost += -BIGNEG
+            cost += BIGNEG
     return cost
 
 

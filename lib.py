@@ -41,8 +41,10 @@ fstds = np.array([np.std(ECFcomp[c]) for c in chains])
 
 precursor_order = ['4:2 FT',  '5:3 FT',  '6:2 FT',  '7:3 FT',  '8:2 FT',  '9:3 FT',  '10:2 FT',
                    'C4 ECF',  'C5 ECF',  'C6 ECF',  'C7 ECF',  'C8 ECF',  'C9 ECF',  'C10 ECF']
-terminal_order = ['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10'] 
-def makeA():
+terminal_order = ['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10']
+
+
+def makeA(x_ft, err_ft, x_ecf, err_ecf):
     """ TOP assay PFCA yield matrix.
 
     Takes yields reported Martin et al., 2019, Talanta; Houtz & Sedlak, 2012, ES&T; Simonnet-Laprade et al., 2019, ESPI;
@@ -86,10 +88,14 @@ def makeA():
     U[0, 6] = err_ft[7]
 
     # ECF
-    A[1, 7] = A[2, 8] = A[3, 9] = A[4, 10] = A[5, 11] = A[6, 12] = A[7, 13] = x_ecf[0]
-    U[1, 7] = U[2, 8] = U[3, 9] = U[4, 10] = U[5, 11] = U[6, 12] = U[7, 13] = err_ecf[0]
-    A[0, 7] = A[1, 8] = A[2, 9] = A[3, 10] = A[4, 11] = A[5, 12] = A[6, 13] = x_ecf[1]
-    U[0, 7] = U[1, 8] = U[2, 9] = U[3, 10] = U[4, 11] = U[5, 12] = U[6, 13] = err_ecf[1]
+    A[1, 7] = A[2, 8] = A[3, 9] = A[4, 10] = A[5,
+                                               11] = A[6, 12] = A[7, 13] = x_ecf[0]
+    U[1, 7] = U[2, 8] = U[3, 9] = U[4, 10] = U[5,
+                                               11] = U[6, 12] = U[7, 13] = err_ecf[0]
+    A[0, 7] = A[1, 8] = A[2, 9] = A[3, 10] = A[4,
+                                               11] = A[5, 12] = A[6, 13] = x_ecf[1]
+    U[0, 7] = U[1, 8] = U[2, 9] = U[3, 10] = U[4,
+                                               11] = U[5, 12] = U[6, 13] = err_ecf[1]
     A[0, 8] = A[1, 9] = A[2, 10] = A[3, 11] = A[4, 12] = A[5, 13] = x_ecf[2]
     U[0, 8] = U[1, 9] = U[2, 10] = U[3, 11] = U[4, 12] = U[5, 13] = err_ecf[2]
     A[0, 9] = A[1, 10] = A[2, 11] = A[3, 12] = A[4, 13] = x_ecf[3]
@@ -108,12 +114,17 @@ def makeA():
 
 class Config(object):
     def __init__(self, filename):
-        ym = yaml.safe_load(open(filename,'r'))
+        ym = yaml.safe_load(open(filename, 'r'))
         input_precursors = ym['possible_precursors']
         prior_name = ym['prior_name']
         self.possible_precursors = input_precursors
         self.prior_name = prior_name
-        A,U = makeA()
+
+        x_ft_in = ym['x_ft']
+        err_ft_in = ym['err_ft']
+        x_ecf_in = ym['x_ecf']
+        err_ecf_in = ym['err_ecf']
+        A, U = makeA(x_ft_in, err_ft_in, x_ecf_in, err_ecf_in)
         self.full_model = A
         self.full_uncertainty = U
         self.measured = None
@@ -121,7 +132,7 @@ class Config(object):
         self.uncertainty = None
         self.compmeans = None
         self.compstds = None
-        
+
     def _set_measured(self, measured_list):
         self.measured = measured_list
 
@@ -134,15 +145,15 @@ class Config(object):
         for c in self.measured:
             choosec.append(terminal_order.index(c))
         cc = np.array(sorted(choosec))
-        self.model = self.full_model[:,cp][cc,:]
-        self.uncertainty = self.full_uncertainty[:,cp][cc,:]
-        
+        self.model = self.full_model[:, cp][cc, :]
+        self.uncertainty = self.full_uncertainty[:, cp][cc, :]
+
     def _set_ecf_ft_indices(self):
         ecf_indices = []
         ft_indices = []
         compmeans = []
         compstds = []
-        for i,p in enumerate(self.possible_precursors):
+        for i, p in enumerate(self.possible_precursors):
             if 'ECF' in p:
                 ecf_indices.append(i)
                 chain = p[:-4]
@@ -157,7 +168,7 @@ class Config(object):
         self.ft_indices = np.array(ft_indices)
         self.compmeans = np.array(compmeans)
         self.compstds = np.array(compstds)
-        
+
     def setup_model(self, measured_list):
         self._set_measured(measured_list)
         self._subset_model()
@@ -173,7 +184,8 @@ all_keys = ['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9', 'C10', 'PFOS',
             'C9MDL', 'C10MDL', 'PFOSMDL',
             'C3err', 'C4err', 'C5err', 'C6err', 'C7err', 'C8err',
             'C9err', 'C10err', 'PFOSerr']
-            
+
+
 class Measurements(object):
     def __init__(self, b=None, bpre=None, bpost=None,
                  pfos=None, C8=False, mdls=None, errs=None):
@@ -184,9 +196,9 @@ class Measurements(object):
         self.isC8 = C8
         self.mdls = mdls
         self.errs = errs
-        self.whats_measured = ['C3', 'C4', 'C5', 'C6', 'C7', 'C8', 'C9']
-        self.configfile = 'config/AFFF.yaml'
-        
+        self.whats_measured = None
+        self.configfile = None
+
     def from_row(self, dfrow):
 
         measured_values = {}
@@ -219,12 +231,11 @@ class Measurements(object):
             whats_measured.append(chain)
 
         self.whats_measured = whats_measured
-        
 
         try:
             cfg = 'config/'+dfrow['config']
         except KeyError:
-            cfg = 'config/AFFF.yaml'
+            raise KeyError
 
         if PREPOST:
             b = None
@@ -249,7 +260,7 @@ class Measurements(object):
             berr.append(dfrow[chain+'err'])
 
         PFOS = (dfrow['PFOS'], dfrow['PFOSMDL'])
-                
+
         self.b = b
         self.bpre = bpre
         self.bpost = bpost
@@ -257,5 +268,3 @@ class Measurements(object):
         self.berr = np.array(berr)
         self.pfos = PFOS
         self.configfile = cfg
-    
-        
