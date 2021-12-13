@@ -5,7 +5,7 @@ BIGNEG = -1e32
 MINVAL, MAXVAL = -6, 4
 
 
-def likelihood(x, meas, config):
+def likelihood(x, config):
     """log-likelihood of x given b.
 
     Calculates the log-probability of x given observations b,
@@ -22,14 +22,13 @@ def likelihood(x, meas, config):
     Returns:
     (float) log-likelihood
     """
-    b = meas.b
-    bpre = meas.bpre
-    bpost = meas.bpost
+    b = config.b
+    bpre = config.bpre
+    bpost = config.bpost
 
     # print(bpre, bpost)
-    mdls = meas.mdls
-    berr = meas.berr
-    C8 = meas.isC8
+    mdls = config.mdls
+    berr = config.berr
 
     x_p = 10**x[:-1]  # transform from log space
     # (last value is an error term)
@@ -51,7 +50,10 @@ def likelihood(x, meas, config):
     if ((bpre is not None) and (bpost is not None)):
         for i in range(len(bpre)):
             delta = bpost[i] - bpre[i]
-            rsd = bpre[i]*berr[i]
+            if bpre[i] > mdls[i]:
+                rsd = bpre[i]*berr[i]
+            else:
+                rsd = mdls[i]*berr[i]
             if delta <= rsd:
                 # change in PFCA concentration is indistinguishable from experimental error
                 obsmin = MINVAL  # don't want -inf
@@ -87,7 +89,7 @@ def likelihood(x, meas, config):
     return logprob
 
 
-def prior_AFFF(x, meas, config):
+def prior_AFFF(x, config):
     """Prior log-probability of proposal x.
 
     Prior used for AFFF samples.
@@ -101,7 +103,11 @@ def prior_AFFF(x, meas, config):
     Returns:
     (float) log-prior
     """
-    PFOS2 = meas.pfos
+    var = config.jeffreys_variance
+    if var is None:
+        raise ValueError('Please define jeffreys_variance in yaml config')
+
+    PFOS2 = config.pfos
     logprob = 0
     PFOS, MDL = PFOS2
 
@@ -139,19 +145,21 @@ def prior_AFFF(x, meas, config):
     logprob += - \
         (np.sum(np.abs((ecf_comp - config.compmeans) / (2 * config.compstds))**2))
 
+    jeffreys_min = np.log10(pmax) - var
+
     for i, xi in enumerate(x):
-        if xi < MINVAL:
+        if xi < jeffreys_min:
             # don't let it waste time wandering arbitrarily low
             logprob += BIGNEG
-        if xi > MAXVAL:  # or high
+        if xi > np.log10(pmax):  # or high
             logprob += BIGNEG
-    if e_p < MINVAL:
-        logprob += BIGNEG
+    # if e_p < MINVAL:
+    #     logprob += BIGNEG
 
     return logprob
 
 
-def prior_AFFF_impacted(x, meas, config):
+def prior_AFFF_impacted(x, config):
     """Prior log-probability of proposal x.
 
     Prior used for environmental samples where predominant PFAS source
@@ -166,27 +174,42 @@ def prior_AFFF_impacted(x, meas, config):
     Returns:
     (float) log-prior
     """
-    PFOS2 = meas.pfos
+    PFOS2 = config.pfos
+    targetprec = config.targetprec
+    targeted_indices = config.targeted_indices
+    b = config.b
+    bpre = config.bpre
+    bpost = config.bpost
+
+    var = config.jeffreys_variance
+    if var is None:
+        raise ValueError('Please define jeffreys_variance in yaml config')
+
     logprob = 0
     PFOS, MDL = PFOS2
 
     emin, emax = 0, 2
 
     x_p = 10**x[:-1]
+    totp = np.sum(x_p)
+    if (bpre is not None) and (bpost is not None):
+        meassum = (bpost-bpre).sum()
+    else:
+        meassum = b.sum()
+
+    x_p = 10**x[:-1]
     e_p = x[-1]
     ecf = np.sum(x_p[config.ecf_indices])  # sum only the ECF precursors
 
-    # the sum of ECF precursors should fall inside of lower and upper bounds
+    # the sum of ECF precursors should not exceed the upper bound
     # of the ratio of TOP assay precursors (corrected for their PFCA yield
     # [88±12%]) to PFOS reported in 3M AFFF in Houtz et al. Tables S5 and S6
-    lowratio = 0.84
     highratio = 2.73
     if PFOS < MDL:
         PFOS = MDL / np.sqrt(2)
-        lowratio = 0
-    pmin, pmax = PFOS * lowratio, PFOS * highratio
+    pmax = PFOS * highratio
 
-    if pmin < ecf < pmax:
+    if ecf < pmax:
         logprob += 0
     else:
         logprob += BIGNEG
@@ -196,6 +219,23 @@ def prior_AFFF_impacted(x, meas, config):
     else:
         logprob += BIGNEG
 
+    # make sure the targeted measurements line up with the right parameters
+    for i, tp in zip(targeted_indices, targetprec):
+        xi = x_p[i]
+        if xi < tp:
+            # Prevent solutions where infered concentration < targeted
+            # precursor concentrations
+            logprob += BIGNEG
+
+    # Prevent inference from infering solutions with more than 10x the
+    # measured mass (i.e. we don't expect a recovery ≤ 10%)
+    if totp/meassum <= 1:
+        logprob += BIGNEG
+    elif totp/meassum >= 10:
+        logprob += BIGNEG
+    else:
+        logprob += 0
+
     # Evaluate the composition of ECF precursor proposal against their
     # composition reported in 3M AFFF in Houtz et al. Table S6 assuming that
     # the oxidation yields of ECF precursors do not depend on their
@@ -204,19 +244,21 @@ def prior_AFFF_impacted(x, meas, config):
     logprob += - \
         (np.sum(np.abs((ecf_comp - config.compmeans) / (config.compstds))**2))
 
+    jeffreys_min = np.log10(meassum) - var
     for i, xi in enumerate(x):
-        if xi < MINVAL:
+        if xi < jeffreys_min:
             # don't let it waste time wandering arbitrarily low
             logprob += BIGNEG
-        if xi > MAXVAL:  # or high
+        if xi > np.log10(meassum):  # or high
             logprob += BIGNEG
-    if e_p < MINVAL:
-        logprob += BIGNEG
+    # if e_p < MINVAL:
+    #     logprob += BIGNEG
 
+    # print(logprob, totp/meassum)
     return logprob
 
 
-def prior_unknown(x, meas, config):
+def prior_unknown(x, config):
     """Prior log-probability of proposal x.
 
     Prior used for environmental samples where predominant PFAS source
@@ -234,9 +276,11 @@ def prior_unknown(x, meas, config):
 
     cost = 0
 
-    b = meas.b
-    bpre = meas.bpre
-    bpost = meas.bpost
+    b = config.b
+    bpre = config.bpre
+    bpost = config.bpost
+    targetprec = config.targetprec
+    targeted_indices = config.targeted_indices
 
     if (bpre is not None) and (bpost is not None):
         meassum = (bpost-bpre).sum()
@@ -248,10 +292,12 @@ def prior_unknown(x, meas, config):
 
     # Prevent inference from infering solutions with more than 10x the
     # measured mass
-    if 1 < totp/meassum < 10:
-        cost += 0
-    else:
+    if totp/meassum <= 1:
         cost += BIGNEG
+    elif totp/meassum >= 10:
+        cost += BIGNEG
+    else:
+        cost += 0
 
     for i, xi in enumerate(x):
         if xi < MINVAL:
@@ -259,9 +305,86 @@ def prior_unknown(x, meas, config):
             cost += BIGNEG
         if xi > MAXVAL:  # or high
             cost += BIGNEG
+
+    # make sure the targeted measurements line up with the right parameters
+    for i, tp in zip(targeted_indices, targetprec):
+        xi = x_p[i]
+        if xi < tp:
+            # Prevent solutions where infered concentration < targeted
+            # precursor concentrations
+            cost += BIGNEG
     return cost
 
+def prior_jeffreys(x, config):
+    """Prior log-probability of proposal x.
+
+    Prior used for environmental samples where predominant PFAS source
+    is unknown.
+
+    Arguments:
+    x (array) proposal precursors
+
+    Keyword arguments:
+    b (array of floats) measured molar increases in PFCA from TOP assay
+
+    Returns:
+    (float) log-prior
+    """
+
+    cost = 0
+
+    b = config.b
+    bpre = config.bpre
+    bpost = config.bpost
+    targetprec = config.targetprec
+    targeted_indices = config.targeted_indices
+
+    var = config.jeffreys_variance
+    if var is None:
+        raise ValueError('Please define jeffreys_variance in yaml config')
+
+    if (bpre is not None) and (bpost is not None):
+        meassum = (bpost-bpre).sum()
+    else:
+        meassum = b.sum()
+
+    jeffreys_min = np.log10(meassum) - var
+
+    x_p = 10**x[:-1]
+    totp = np.sum(x_p)
+
+    # Prevent inference from infering solutions with more than 10x the
+    # measured mass
+    if totp/meassum <= 1:
+        cost += BIGNEG
+    elif totp/meassum >= 10:
+        cost += BIGNEG
+    else:
+        cost += 0
+
+    for i, xi in enumerate(x[:-1]):
+        xi_lin = 10**xi
+        if xi < jeffreys_min:
+            # don't let it waste time wandering arbitrarily low
+            cost += BIGNEG
+        if (xi_lin/meassum) >= 10:  # or high
+            cost += BIGNEG
+    if x[-1] < MINVAL:
+        cost += BIGNEG
+    if x[-1] > MAXVAL:
+        cost += BIGNEG
+
+    # make sure the targeted measurements line up with the right parameters
+    for i, tp in zip(targeted_indices, targetprec):
+        xi = x_p[i]
+        if xi < tp:
+            # Prevent solutions where infered concentration < targeted
+            # precursor concentrations
+            cost += BIGNEG
+    return cost
 
 # Collect priors by name for easy lookup
 priors = {'AFFF': prior_AFFF,
-          'AFFF_impacted': prior_AFFF_impacted, 'unknown': prior_unknown}
+          'AFFF_impacted': prior_AFFF_impacted, 
+          'unknown': prior_unknown,
+          'unknown_jeffreys': prior_jeffreys}
